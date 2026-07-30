@@ -258,6 +258,8 @@ let tlStart = null, tlDays = 0;
 // ─── Config ────────────────────────────────────────────────────────────────────
 function loadCfg() {
   try { cfg = JSON.parse(localStorage.getItem('adoGanttCfg2') || '{}'); } catch(e) { cfg = {}; }
+  // Equipo por defecto al abrir (una sola vez): usa el Team de la config o "Evolutivo Team"
+  if (!selectedTeam) selectedTeam = cfg.team || 'Evolutivo Team';
   if (cfg.org && cfg.project && cfg.pat) {
     document.getElementById('configOverlay').style.display = 'none';
     loadData();

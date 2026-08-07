@@ -424,19 +424,6 @@ function base() { return `https://dev.azure.com/${encodeURIComponent(cfg.org)}/$
 // URL del work item en Azure DevOps
 function wiUrl(id) { return `${base()}/_workitems/edit/${id}`; }
 
-// Diagnóstico: en la consola escribí  diag(9075)  (solo el número)
-function diag(id) {
-  id = +id;
-  const raw  = (lastRaw||[]).find(x => x.id === id);
-  const proc = (workItems||[]).find(x => x.id === id);
-  let inTree = false;
-  (function w(n){ for (const x of (n||[])) { if (x.id === id) inTree = true; w(x.children); } })(fullTree);
-  console.log('=== diag ' + id + ' ===');
-  console.log('¿traído?', !!raw, '| tipo REAL:', raw ? '"' + raw.fields['System.WorkItemType'] + '"' : '—', '| estado:', raw ? raw.fields['System.State'] : '—');
-  console.log('parent(field):', raw ? raw.fields['System.Parent'] : '—', '| area:', raw ? raw.fields['System.AreaPath'] : '—');
-  console.log('¿en workItems?', !!proc, '| ¿en árbol?', inTree, '| ¿tipo activo?', raw ? activeTypes.has(raw.fields['System.WorkItemType']) : '—');
-}
-
 async function apiGet(url) {
   const r = await fetch(url, { headers: authHdr() });
   if (!r.ok) { const t = await r.text(); throw new Error(`GET ${url}\n→ ${r.status}: ${t.slice(0,300)}`); }
@@ -671,7 +658,7 @@ async function fetchWorkItemsHierarchy(areaFilter = '') {
   const sourceCond = srcArea
     ? `Source.[System.State] ${NOTREM} ${srcArea}`
     : `Source.[System.WorkItemType] IN ('Epic','Improvement','Improvements') AND Source.[System.State] ${NOTREM}`;
-  const query = `SELECT [System.Id] FROM WorkItemLinks WHERE (${sourceCond}) AND ([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward') AND (Target.[System.WorkItemType] IN ('Feature','User Story','Technical Task','Task','Bug','Improvement','Improvements') AND Target.[System.State] ${NOTREM}) MODE (Recursive)`;
+  const query = `SELECT [System.Id] FROM WorkItemLinks WHERE (${sourceCond}) AND ([System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward') AND (Target.[System.WorkItemType] IN ('Feature','User Story','Technical Task','Technical task','Task','Bug','Improvement','Improvements') AND Target.[System.State] ${NOTREM}) MODE (Recursive)`;
   const r = await fetch(`${base()}/_apis/wit/wiql?api-version=7.1`, {
     method: 'POST', headers: authHdr(), body: JSON.stringify({ query })
   });
@@ -695,7 +682,7 @@ async function fetchWorkItemsHierarchy(areaFilter = '') {
 // Consulta plana (fallback): lista chata con tope $top.
 async function fetchWorkItemsFlat(areaFilter = '') {
   const maxItems = cfg.maxItems || 500;
-  const wiql = { query: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.WorkItemType] IN ('Epic','Feature','User Story','Technical Task','Task','Bug','Improvement','Improvements') AND [System.State] NOT IN ('Removed','Cut','Cancelled','Rejected','Withdrawn') ${areaFilter} ORDER BY [System.WorkItemType] ASC, [System.Id] ASC` };
+  const wiql = { query: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.WorkItemType] IN ('Epic','Feature','User Story','Technical Task','Technical task','Task','Bug','Improvement','Improvements') AND [System.State] NOT IN ('Removed','Cut','Cancelled','Rejected','Withdrawn') ${areaFilter} ORDER BY [System.WorkItemType] ASC, [System.Id] ASC` };
   const r = await fetch(`${base()}/_apis/wit/wiql?$top=${maxItems}&api-version=7.1`, {
     method: 'POST', headers: authHdr(), body: JSON.stringify(wiql)
   });
@@ -760,6 +747,7 @@ function processItems(raw, iters) {
     // Normalizar tipo: en este ADO el tipo es "Improvements" (plural); lo mapeamos a "Improvement"
     let type = f['System.WorkItemType'];
     if (type === 'Improvements') type = 'Improvement';
+    if (type === 'Technical task') type = 'Technical Task'; // nombre real en ADO (t minúscula)
     const iter = findIter(f['System.IterationPath']);
 
     let startDate, endDate, hasExplicitDates = false;

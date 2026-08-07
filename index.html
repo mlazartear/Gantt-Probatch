@@ -424,6 +424,19 @@ function base() { return `https://dev.azure.com/${encodeURIComponent(cfg.org)}/$
 // URL del work item en Azure DevOps
 function wiUrl(id) { return `${base()}/_workitems/edit/${id}`; }
 
+// Diagnóstico: en la consola escribí  diag(9075)  (solo el número)
+function diag(id) {
+  id = +id;
+  const raw  = (lastRaw||[]).find(x => x.id === id);
+  const proc = (workItems||[]).find(x => x.id === id);
+  let inTree = false;
+  (function w(n){ for (const x of (n||[])) { if (x.id === id) inTree = true; w(x.children); } })(fullTree);
+  console.log('=== diag ' + id + ' ===');
+  console.log('¿traído?', !!raw, '| tipo REAL:', raw ? '"' + raw.fields['System.WorkItemType'] + '"' : '—', '| estado:', raw ? raw.fields['System.State'] : '—');
+  console.log('parent(field):', raw ? raw.fields['System.Parent'] : '—', '| area:', raw ? raw.fields['System.AreaPath'] : '—');
+  console.log('¿en workItems?', !!proc, '| ¿en árbol?', inTree, '| ¿tipo activo?', raw ? activeTypes.has(raw.fields['System.WorkItemType']) : '—');
+}
+
 async function apiGet(url) {
   const r = await fetch(url, { headers: authHdr() });
   if (!r.ok) { const t = await r.text(); throw new Error(`GET ${url}\n→ ${r.status}: ${t.slice(0,300)}`); }
